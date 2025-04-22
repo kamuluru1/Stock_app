@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:stock_trading_app/screens/favorites_screen.dart';
 import 'screens/stock_search_screen.dart';
 
 void main() {
@@ -11,7 +12,7 @@ class StockApp extends StatelessWidget {
     return MaterialApp(
       title: 'Stock Trading App',
       theme: ThemeData.dark(),
-      home: StockSearchScreen(),
+      home: FavoritesScreen(),
       routes: {'/search': (context) => StockSearchScreen()},
     );
   }
