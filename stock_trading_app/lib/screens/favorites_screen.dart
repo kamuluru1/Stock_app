@@ -1,6 +1,18 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 
-class FavoritesScreen extends StatelessWidget {
+class FavoritesScreen extends StatefulWidget {
+  @override
+  FavoritesScreenState createState() => FavoritesScreenState();
+}
+
+class FavoritesScreenState extends State<FavoritesScreen> {
+  @override
+  void initState() {
+    super.initState();
+    AuthService().signInAnonymously(); 
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

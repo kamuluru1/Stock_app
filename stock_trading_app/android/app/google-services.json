@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "590980159827",
+    "project_id": "stockapp-eda3d",
+    "storage_bucket": "stockapp-eda3d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:590980159827:android:b40623896617e5b1dfa9a6",
+        "android_client_info": {
+          "package_name": "com.example.stock_trading_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC1ivgDSx21XlgNnisSkv3A_YYU0TxGMws"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
