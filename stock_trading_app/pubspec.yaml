@@ -37,6 +37,9 @@ dependencies:
   firebase_core: ^3.13.0
   firebase_auth: ^5.5.2
   cloud_firestore: ^5.6.6
+  http: ^0.13.5                    # for REST calls
+  flutter_dotenv: ^5.0.2          # for storing your API key securely
+  web_socket_channel: ^2.1.0
 
 dev_dependencies:
   flutter_test:
