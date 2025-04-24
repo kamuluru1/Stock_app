@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'favorites_screen.dart';
 
 class WelcomeLoginScreen extends StatefulWidget {
   @override
@@ -32,7 +31,7 @@ class _WelcomeLoginScreenState extends State<WelcomeLoginScreen>
     _controller.forward();
   }
 
-  Future<void> _handleAuth() async {
+  void _handleAuth() async {
     setState(() {
       _loading = true;
       _error = null;
@@ -49,14 +48,41 @@ class _WelcomeLoginScreenState extends State<WelcomeLoginScreen>
           password: _passwordController.text.trim(),
         );
       }
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => FavoritesScreen()),
-      );
+      Navigator.pushReplacementNamed(context, '/dashboard');
     } on FirebaseAuthException catch (e) {
-      setState(() => _error = e.message);
-    } finally {
       setState(() => _loading = false);
+      if (_isLogin) {
+        showDialog(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                title: Text("Login Failed"),
+                content: Text("Incorrect email or password."),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text("OK"),
+                  ),
+                ],
+              ),
+        );
+      } else {
+        setState(() => _loading = false);
+        showDialog(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                title: Text("Registration Failed"),
+                content: Text(e.message ?? "Something went wrong."),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text("OK"),
+                  ),
+                ],
+              ),
+        );
+      }
     }
   }
 
@@ -137,41 +163,62 @@ class _WelcomeLoginScreenState extends State<WelcomeLoginScreen>
                 style: TextStyle(color: Colors.white70, fontSize: 18),
               ),
               SizedBox(height: 32),
-              TextField(
-                controller: _emailController,
-                style: TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white10,
-                  labelText: "Email",
-                  labelStyle: TextStyle(color: Colors.white),
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              SizedBox(height: 16),
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                style: TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white10,
-                  labelText: "Password",
-                  labelStyle: TextStyle(color: Colors.white),
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              SizedBox(height: 16),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: _showForgotPasswordDialog,
-                  child: Text(
-                    "Forgot password?",
-                    style: TextStyle(color: Colors.white70),
+
+              // Email field
+              Container(
+                width: 320,
+                child: TextField(
+                  controller: _emailController,
+                  style: TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white10,
+                    labelText: "Email",
+                    labelStyle: TextStyle(color: Colors.white),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      borderSide: BorderSide(color: Colors.greenAccent),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      borderSide: BorderSide(
+                        color: Colors.greenAccent,
+                        width: 2,
+                      ),
+                    ),
                   ),
                 ),
               ),
+              SizedBox(height: 16),
+
+              // Password field
+              Container(
+                width: 320,
+                child: TextField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  style: TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white10,
+                    labelText: "Password",
+                    labelStyle: TextStyle(color: Colors.white),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      borderSide: BorderSide(color: Colors.greenAccent),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      borderSide: BorderSide(
+                        color: Colors.greenAccent,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: 16),
+
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -181,6 +228,7 @@ class _WelcomeLoginScreenState extends State<WelcomeLoginScreen>
                   ),
                 ),
               SizedBox(height: 12),
+
               _loading
                   ? CircularProgressIndicator(color: Colors.greenAccent)
                   : ElevatedButton(
@@ -192,15 +240,27 @@ class _WelcomeLoginScreenState extends State<WelcomeLoginScreen>
                         horizontal: 40,
                         vertical: 16,
                       ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
                     ),
                     child: Text(_isLogin ? "Login" : "Register"),
                   ),
+              SizedBox(height: 12),
+
               TextButton(
                 onPressed: () => setState(() => _isLogin = !_isLogin),
                 child: Text(
                   _isLogin
                       ? "Don't have an account? Register"
                       : "Already have an account? Login",
+                  style: TextStyle(color: Colors.white70),
+                ),
+              ),
+              TextButton(
+                onPressed: _showForgotPasswordDialog,
+                child: Text(
+                  "Forgot password?",
                   style: TextStyle(color: Colors.white70),
                 ),
               ),
