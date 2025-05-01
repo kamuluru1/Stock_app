@@ -24,20 +24,25 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
     });
 
     final token = dotenv.env['FINNHUB_API_KEY'];
-    final uri = Uri.https(
-      'finnhub.io',
-      '/api/v1/search',
-      {'q': query, 'token': token},
-    );
+    final uri = Uri.https('finnhub.io', '/api/v1/search', {
+      'q': query,
+      'token': token,
+    });
 
     try {
       final resp = await http.get(uri);
       final data = json.decode(resp.body);
       final List hits = data['result'] ?? [];
       setState(() {
-        _results = hits
-            .map((e) => _Symbol(e['symbol'] as String, e['description'] as String))
-            .toList();
+        _results =
+            hits
+                .map(
+                  (e) => _Symbol(
+                    e['symbol'] as String,
+                    e['description'] as String,
+                  ),
+                )
+                .toList();
       });
     } catch (e) {
       print("Search error: $e");
