@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -17,6 +18,13 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
   double? _price;
   bool _priceLoading = false;
   String? _priceError;
+  Timer? _timer;
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   Future<void> _search() async {
     final query = _controller.text.trim();
@@ -27,6 +35,7 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
       _selected = null;
       _price = null;
       _priceError = null;
+      _timer?.cancel();
     });
 
     final token = dotenv.env['FINNHUB_API_KEY'];
@@ -82,6 +91,12 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
     }
   }
 
+  void _startAutoRefresh(String symbol) {
+    _timer?.cancel();
+    _fetchPrice(symbol);
+    _timer = Timer.periodic(Duration(seconds: 5), (_) => _fetchPrice(symbol));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -121,7 +136,7 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
                           _controller.text = s.symbol;
                           _results = [];
                         });
-                        _fetchPrice(s.symbol);
+                        _startAutoRefresh(s.symbol);
                       },
                     );
                   },
