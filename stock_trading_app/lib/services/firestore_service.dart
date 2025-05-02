@@ -14,6 +14,15 @@ class FirestoreService {
         .set({'category': category});
   }
 
+  Future<void> deleteFavoriteStock(String symbol) async {
+    await _firestore
+        .collection('users')
+        .doc(_userId)
+        .collection('favorites')
+        .doc(symbol)
+        .delete();
+  }
+
   Stream<Map<String, List<String>>> getCategorizedFavorites() {
     return _firestore
         .collection('users')
