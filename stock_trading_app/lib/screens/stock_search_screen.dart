@@ -26,10 +26,10 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
     'TSLA': 'Energy',
     'AMZN': 'Tech',
     'MSFT': 'Tech',
-    'NFLX': 'Entertainment',
+    'NFLX': 'Tech',
     'NVDA': 'Tech',
     'META': 'Tech',
-    'BABA': 'Shopping',
+    'BABA': 'Tech',
     'INTC': 'Tech',
   };
 
@@ -70,6 +70,7 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
         final resp = await http.get(uri);
         final data = json.decode(resp.body);
         final price = (data['c'] as num).toDouble();
+        if (!mounted) return;
         setState(() {
           _trendingPrices[stock.symbol] = price;
         });
@@ -82,6 +83,7 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
   Future<void> _search() async {
     final query = _controller.text.trim();
     if (query.isEmpty) return;
+    if (!mounted) return;
     setState(() {
       _loading = true;
       _results = [];
@@ -101,6 +103,7 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
       final resp = await http.get(uri);
       final data = json.decode(resp.body);
       final List hits = data['result'] ?? [];
+      if (!mounted) return;
       setState(() {
         _results =
             hits
@@ -115,11 +118,13 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
     } catch (e) {
       print("Search error: $e");
     } finally {
+      if (!mounted) return;
       setState(() => _loading = false);
     }
   }
 
   Future<void> _fetchPrice(String symbol) async {
+    if (!mounted) return;
     setState(() {
       _priceLoading = true;
       _priceError = null;
@@ -132,15 +137,18 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
       });
       final resp = await http.get(uri);
       final data = json.decode(resp.body);
+      if (!mounted) return;
       setState(() {
         _price = (data['c'] as num).toDouble();
       });
     } catch (e) {
       print("Price fetch error: $e");
+      if (!mounted) return;
       setState(() {
         _priceError = 'Failed to fetch price';
       });
     } finally {
+      if (!mounted) return;
       setState(() {
         _priceLoading = false;
       });
@@ -155,7 +163,7 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
 
   Future<void> _showCategoryDialog(String symbol) async {
     String? selectedCategory = _suggestedCategories[symbol] ?? 'Other';
-    final categories = ['Tech', 'Energy', 'Crypto', 'Finance', 'Shopping', 'Entertainment', 'Other'];
+    final categories = ['Tech', 'Energy', 'Crypto', 'Finance', 'Other'];
 
     await showDialog(
       context: context,
@@ -190,6 +198,7 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
                       symbol,
                       selectedCategory!,
                     );
+                    if (!mounted) return;
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
