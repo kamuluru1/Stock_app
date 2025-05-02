@@ -5,7 +5,7 @@ class FirestoreService {
   final _firestore = FirebaseFirestore.instance;
   final _userId = FirebaseAuth.instance.currentUser!.uid;
 
-  Future<void> addFavoriteStock(String symbol) async {
+  Future<void> addFavoriteStock(String symbol, String s) async {
     final docRef = _firestore.collection('users').doc(_userId);
     await docRef.set({
       'favorites': FieldValue.arrayUnion([symbol]),

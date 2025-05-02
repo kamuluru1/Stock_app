@@ -20,6 +20,19 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
   String? _priceError;
   Timer? _timer;
 
+  final Map<String, String> _suggestedCategories = {
+    'AAPL': 'Tech',
+    'GOOGL': 'Tech',
+    'TSLA': 'Energy',
+    'AMZN': 'Tech',
+    'MSFT': 'Tech',
+    'NFLX': 'Entertainment',
+    'NVDA': 'Tech',
+    'META': 'Tech',
+    'BABA': 'Shopping',
+    'INTC': 'Tech',
+  };
+
   final List<_Symbol> _trendingSymbols = [
     _Symbol('AAPL', 'Apple Inc.'),
     _Symbol('GOOGL', 'Alphabet Inc.'),
@@ -61,7 +74,7 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
           _trendingPrices[stock.symbol] = price;
         });
       } catch (e) {
-        print("Trending fetch error for \${stock.symbol}: \$e");
+        print("Trending fetch error for ${stock.symbol}: $e");
       }
     }
   }
@@ -100,7 +113,7 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
                 .toList();
       });
     } catch (e) {
-      print("Search error: \$e");
+      print("Search error: $e");
     } finally {
       setState(() => _loading = false);
     }
@@ -123,7 +136,7 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
         _price = (data['c'] as num).toDouble();
       });
     } catch (e) {
-      print("Price fetch error: \$e");
+      print("Price fetch error: $e");
       setState(() {
         _priceError = 'Failed to fetch price';
       });
@@ -140,154 +153,168 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
     _timer = Timer.periodic(Duration(seconds: 5), (_) => _fetchPrice(symbol));
   }
 
+  Future<void> _showCategoryDialog(String symbol) async {
+    String? selectedCategory = _suggestedCategories[symbol] ?? 'Other';
+    final categories = ['Tech', 'Energy', 'Crypto', 'Finance', 'Shopping', 'Entertainment', 'Other'];
+
+    await showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text('Choose Category for $symbol'),
+            content: StatefulBuilder(
+              builder: (context, setState) {
+                return DropdownButton<String>(
+                  value: selectedCategory,
+                  items:
+                      categories.map((cat) {
+                        return DropdownMenuItem(value: cat, child: Text(cat));
+                      }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      selectedCategory = value!;
+                    });
+                  },
+                );
+              },
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (selectedCategory != null) {
+                    await FirestoreService().addFavoriteStock(
+                      symbol,
+                      selectedCategory!,
+                    );
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          "Added $symbol to favorites under $selectedCategory",
+                        ),
+                      ),
+                    );
+                  }
+                },
+                child: Text('Save'),
+              ),
+            ],
+          ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text("Search Stocks")),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            TextField(
-              controller: _controller,
-              decoration: InputDecoration(
-                labelText: 'Enter company name or symbol',
-                suffixIcon: IconButton(
-                  icon: Icon(Icons.search),
-                  onPressed: _search,
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              TextField(
+                controller: _controller,
+                decoration: InputDecoration(
+                  labelText: 'Enter company name or symbol',
+                  suffixIcon: IconButton(
+                    icon: Icon(Icons.search),
+                    onPressed: _search,
+                  ),
                 ),
+                onSubmitted: (_) => _search(),
               ),
-              onSubmitted: (_) => _search(),
-            ),
-
-            SizedBox(height: 30),
-            Text(
-              "Trending Stocks",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 12),
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 16,
-              runSpacing: 16,
-              children:
-                  _trendingSymbols.map((s) {
-                    final price = _trendingPrices[s.symbol];
-                    return GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selected = s.symbol;
-                          _controller.text = s.symbol;
-                          _results = [];
-                        });
-                        _startAutoRefresh(s.symbol);
-                      },
-                      child: Container(
-                        width: 160,
-                        padding: EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.grey.withOpacity(0.2),
-                              blurRadius: 4,
-                              offset: Offset(2, 4),
-                            ),
-                          ],
-                          border: Border.all(color: Colors.greenAccent),
+              SizedBox(height: 30),
+              Text(
+                "Trending Stocks",
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 12),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 16,
+                runSpacing: 16,
+                children:
+                    _trendingSymbols.map((s) {
+                      final price = _trendingPrices[s.symbol];
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _selected = s.symbol;
+                            _controller.text = s.symbol;
+                            _results = [];
+                          });
+                          _startAutoRefresh(s.symbol);
+                        },
+                        child: Container(
+                          width: 160,
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.greenAccent),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text(
+                                s.symbol,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              SizedBox(height: 6),
+                              Text(
+                                s.description,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                              SizedBox(height: 6),
+                              Text(
+                                price != null
+                                    ? "\$${price.toStringAsFixed(2)}"
+                                    : "Loading...",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Text(
-                              s.symbol,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            SizedBox(height: 6),
-                            Text(
-                              s.description,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.black54,
-                              ),
-                            ),
-                            SizedBox(height: 6),
-                            Text(
-                              price != null
-                                  ? "\$${price.toStringAsFixed(2)}"
-                                  : "Loading...",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black87,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
-            ),
-
-            if (_loading) ...[
-              SizedBox(height: 20),
-              CircularProgressIndicator(),
-            ] else if (_results.isNotEmpty) ...[
-              SizedBox(height: 20),
-              Expanded(
-                child: ListView.separated(
-                  itemCount: _results.length,
-                  separatorBuilder: (_, __) => Divider(),
-                  itemBuilder: (_, i) {
-                    final s = _results[i];
-                    return ListTile(
-                      title: Text(s.symbol),
-                      subtitle: Text(s.description),
-                      onTap: () {
-                        setState(() {
-                          _selected = s.symbol;
-                          _controller.text = s.symbol;
-                          _results = [];
-                        });
-                        _startAutoRefresh(s.symbol);
-                      },
-                    );
-                  },
+                      );
+                    }).toList(),
+              ),
+              if (_selected != null) ...[
+                SizedBox(height: 20),
+                Text("Selected: $_selected", style: TextStyle(fontSize: 16)),
+                SizedBox(height: 8),
+                if (_priceLoading)
+                  CircularProgressIndicator()
+                else if (_price != null)
+                  Text(
+                    "Price: \$${_price!.toStringAsFixed(2)}",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  )
+                else if (_priceError != null)
+                  Text(_priceError!, style: TextStyle(color: Colors.redAccent)),
+                SizedBox(height: 8),
+                ElevatedButton(
+                  onPressed: () => _showCategoryDialog(_selected!),
+                  child: Text("Add to Favorites"),
                 ),
-              ),
+              ],
             ],
-
-            if (_selected != null) ...[
-              SizedBox(height: 20),
-              Text("Selected: $_selected", style: TextStyle(fontSize: 16)),
-              SizedBox(height: 8),
-              if (_priceLoading)
-                CircularProgressIndicator()
-              else if (_price != null)
-                Text(
-                  "Price: \$${_price!.toStringAsFixed(2)}",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                )
-              else if (_priceError != null)
-                Text(_priceError!, style: TextStyle(color: Colors.redAccent)),
-              SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: () async {
-                  await FirestoreService().addFavoriteStock(_selected!);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Added $_selected to favorites")),
-                  );
-                },
-                child: Text("Add to Favorites"),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );
