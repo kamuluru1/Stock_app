@@ -14,24 +14,7 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
   final TextEditingController _controller = TextEditingController();
   List<_Symbol> _results = [];
   bool _loading = false;
-  String? _selected;
-  double? _price;
-  bool _priceLoading = false;
-  String? _priceError;
   Timer? _timer;
-
-  final Map<String, String> _suggestedCategories = {
-    'AAPL': 'Tech',
-    'GOOGL': 'Tech',
-    'TSLA': 'Energy',
-    'AMZN': 'Tech',
-    'MSFT': 'Tech',
-    'NFLX': 'Tech',
-    'NVDA': 'Tech',
-    'META': 'Tech',
-    'BABA': 'Tech',
-    'INTC': 'Tech',
-  };
 
   final List<_Symbol> _trendingSymbols = [
     _Symbol('AAPL', 'Apple Inc.'),
@@ -83,14 +66,9 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
   Future<void> _search() async {
     final query = _controller.text.trim();
     if (query.isEmpty) return;
-    if (!mounted) return;
     setState(() {
       _loading = true;
       _results = [];
-      _selected = null;
-      _price = null;
-      _priceError = null;
-      _timer?.cancel();
     });
 
     final token = dotenv.env['FINNHUB_API_KEY'];
@@ -117,87 +95,6 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
     }
   }
 
-  Future<void> _fetchPrice(String symbol) async {
-    if (!mounted) return;
-    setState(() {
-      _priceLoading = true;
-      _priceError = null;
-    });
-    try {
-      final token = dotenv.env['FINNHUB_API_KEY'];
-      final uri = Uri.https('finnhub.io', '/api/v1/quote', {
-        'symbol': symbol,
-        'token': token,
-      });
-      final resp = await http.get(uri);
-      final data = json.decode(resp.body);
-      if (!mounted) return;
-      setState(() {
-        _price = (data['c'] as num).toDouble();
-      });
-    } catch (e) {
-      print("Price fetch error: $e");
-      if (!mounted) return;
-      setState(() {
-        _priceError = 'Failed to fetch price';
-      });
-    } finally {
-      if (!mounted) return;
-      setState(() {
-        _priceLoading = false;
-      });
-    }
-  }
-
-  void _startAutoRefresh(String symbol) {
-    _timer?.cancel();
-    _fetchPrice(symbol);
-    _timer = Timer.periodic(Duration(seconds: 5), (_) => _fetchPrice(symbol));
-  }
-
-  Future<void> _showCategoryDialog(String symbol) async {
-    String? selectedCategory = _suggestedCategories[symbol] ?? 'Other';
-    final categories = ['Tech', 'Energy', 'Crypto', 'Finance', 'Other'];
-
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Choose Category for $symbol'),
-        content: StatefulBuilder(
-          builder: (context, setState) {
-            return DropdownButton<String>(
-              value: selectedCategory,
-              items: categories
-                  .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
-                  .toList(),
-              onChanged: (value) {
-                setState(() {
-                  selectedCategory = value!;
-                });
-              },
-            );
-          },
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              if (selectedCategory != null) {
-                await FirestoreService().addFavoriteStock(symbol, selectedCategory!);
-                if (!mounted) return;
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("Added $symbol to favorites under $selectedCategory")),
-                );
-              }
-            },
-            child: Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -217,7 +114,7 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
             SizedBox(height: 16),
             if (_loading)
               CircularProgressIndicator()
-            else if (_results.isNotEmpty) ...[
+            else if (_results.isNotEmpty)
               Expanded(
                 child: ListView.builder(
                   itemCount: _results.length,
@@ -227,21 +124,18 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
                       title: Text(s.symbol),
                       subtitle: Text(s.description),
                       onTap: () {
-                        setState(() {
-                          _selected = s.symbol;
-                          _controller.text = s.symbol;
-                          _results = [];
-                        });
-                        _startAutoRefresh(s.symbol);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => StockDetailScreen(symbol: s.symbol),
+                          ),
+                        );
                       },
                     );
                   },
                 ),
-              ),
-            ] else ...[
-              SizedBox(height: 16),
-              Text("Trending Stocks", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-              SizedBox(height: 12),
+              )
+            else
               Expanded(
                 child: Wrap(
                   alignment: WrapAlignment.center,
@@ -251,12 +145,12 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
                     final price = _trendingPrices[s.symbol];
                     return GestureDetector(
                       onTap: () {
-                        setState(() {
-                          _selected = s.symbol;
-                          _controller.text = s.symbol;
-                          _results = [];
-                        });
-                        _startAutoRefresh(s.symbol);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => StockDetailScreen(symbol: s.symbol),
+                          ),
+                        );
                       },
                       child: Container(
                         width: 160,
@@ -269,11 +163,32 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Text(s.symbol, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+                            Text(
+                              s.symbol,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
                             SizedBox(height: 6),
-                            Text(s.description, textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Colors.black54)),
+                            Text(
+                              s.description,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.black54,
+                              ),
+                            ),
                             SizedBox(height: 6),
-                            Text(price != null ? "\$${price.toStringAsFixed(2)}" : "Loading...", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)),
+                            Text(
+                              price != null ? "\$${price.toStringAsFixed(2)}" : "Loading...",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -281,20 +196,6 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
                   }).toList(),
                 ),
               ),
-            ],
-            if (_selected != null) ...[
-              SizedBox(height: 20),
-              Text("Selected: $_selected", style: TextStyle(fontSize: 16)),
-              SizedBox(height: 8),
-              if (_priceLoading)
-                CircularProgressIndicator()
-              else if (_price != null)
-                Text("Price: \$${_price!.toStringAsFixed(2)}", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))
-              else if (_priceError != null)
-                  Text(_priceError!, style: TextStyle(color: Colors.redAccent)),
-              SizedBox(height: 8),
-              ElevatedButton(onPressed: () => _showCategoryDialog(_selected!), child: Text("Add to Favorites")),
-            ],
           ],
         ),
       ),
@@ -306,5 +207,100 @@ class _Symbol {
   final String symbol;
   final String description;
   _Symbol(this.symbol, this.description);
+}
+
+class StockDetailScreen extends StatefulWidget {
+  final String symbol;
+  const StockDetailScreen({Key? key, required this.symbol}) : super(key: key);
+
+  @override
+  _StockDetailScreenState createState() => _StockDetailScreenState();
+}
+
+class _StockDetailScreenState extends State<StockDetailScreen> {
+  bool _loading = true;
+  Map<String, dynamic>? _profile;
+  Map<String, dynamic>? _quote;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDetails();
+  }
+
+  Future<void> _fetchDetails() async {
+    final token = dotenv.env['FINNHUB_API_KEY'];
+    try {
+      final profileUri = Uri.https('finnhub.io', '/api/v1/stock/profile2', {
+        'symbol': widget.symbol,
+        'token': token,
+      });
+      final quoteUri = Uri.https('finnhub.io', '/api/v1/quote', {
+        'symbol': widget.symbol,
+        'token': token,
+      });
+      final profileResp = await http.get(profileUri);
+      final quoteResp = await http.get(quoteUri);
+      final profileData = json.decode(profileResp.body);
+      final quoteData = json.decode(quoteResp.body);
+      if (!mounted) return;
+      setState(() {
+        _profile = profileData;
+        _quote = quoteData;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.symbol)),
+      body: _loading
+          ? Center(child: CircularProgressIndicator())
+          : _error != null
+          ? Center(child: Text('Error: $_error'))
+          : SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            if (_profile?['logo'] != null) ...[
+              Image.network(_profile!['logo'], height: 80),
+              SizedBox(height: 12),
+            ],
+            Text(
+              _profile?['name'] ?? widget.symbol,
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Text(widget.symbol, style: TextStyle(fontSize: 18)),
+            SizedBox(height: 16),
+            Text('Industry: ${_profile?['finnhubIndustry'] ?? 'N/A'}'),
+            SizedBox(height: 8),
+            Text(
+              'Market Cap: \$${_profile?['marketCapitalization']?.toStringAsFixed(2)} M',
+            ),
+            SizedBox(height: 24),
+            Text(
+              'Current Price: \$${_quote?['c']?.toStringAsFixed(2)}',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Text('Open: \$${_quote?['o']?.toStringAsFixed(2)}'),
+            Text('High: \$${_quote?['h']?.toStringAsFixed(2)}'),
+            Text('Low: \$${_quote?['l']?.toStringAsFixed(2)}'),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
