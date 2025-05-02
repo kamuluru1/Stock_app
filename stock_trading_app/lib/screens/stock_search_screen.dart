@@ -105,15 +105,9 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
       final List hits = data['result'] ?? [];
       if (!mounted) return;
       setState(() {
-        _results =
-            hits
-                .map(
-                  (e) => _Symbol(
-                    e['symbol'] as String,
-                    e['description'] as String,
-                  ),
-                )
-                .toList();
+        _results = hits
+            .map((e) => _Symbol(e['symbol'] as String, e['description'] as String))
+            .toList();
       });
     } catch (e) {
       print("Search error: $e");
@@ -167,52 +161,40 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
 
     await showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text('Choose Category for $symbol'),
-            content: StatefulBuilder(
-              builder: (context, setState) {
-                return DropdownButton<String>(
-                  value: selectedCategory,
-                  items:
-                      categories.map((cat) {
-                        return DropdownMenuItem(value: cat, child: Text(cat));
-                      }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      selectedCategory = value!;
-                    });
-                  },
-                );
+      builder: (context) => AlertDialog(
+        title: Text('Choose Category for $symbol'),
+        content: StatefulBuilder(
+          builder: (context, setState) {
+            return DropdownButton<String>(
+              value: selectedCategory,
+              items: categories
+                  .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
+                  .toList(),
+              onChanged: (value) {
+                setState(() {
+                  selectedCategory = value!;
+                });
               },
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  if (selectedCategory != null) {
-                    await FirestoreService().addFavoriteStock(
-                      symbol,
-                      selectedCategory!,
-                    );
-                    if (!mounted) return;
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          "Added $symbol to favorites under $selectedCategory",
-                        ),
-                      ),
-                    );
-                  }
-                },
-                child: Text('Save'),
-              ),
-            ],
+            );
+          },
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              if (selectedCategory != null) {
+                await FirestoreService().addFavoriteStock(symbol, selectedCategory!);
+                if (!mounted) return;
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Added $symbol to favorites under $selectedCategory")),
+                );
+              }
+            },
+            child: Text('Save'),
           ),
+        ],
+      ),
     );
   }
 
@@ -222,108 +204,98 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
       appBar: AppBar(title: Text("Search Stocks")),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              TextField(
-                controller: _controller,
-                decoration: InputDecoration(
-                  labelText: 'Enter company name or symbol',
-                  suffixIcon: IconButton(
-                    icon: Icon(Icons.search),
-                    onPressed: _search,
-                  ),
+        child: Column(
+          children: [
+            TextField(
+              controller: _controller,
+              decoration: InputDecoration(
+                labelText: 'Enter company name or symbol',
+                suffixIcon: IconButton(icon: Icon(Icons.search), onPressed: _search),
+              ),
+              onSubmitted: (_) => _search(),
+            ),
+            SizedBox(height: 16),
+            if (_loading)
+              CircularProgressIndicator()
+            else if (_results.isNotEmpty) ...[
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _results.length,
+                  itemBuilder: (context, index) {
+                    final s = _results[index];
+                    return ListTile(
+                      title: Text(s.symbol),
+                      subtitle: Text(s.description),
+                      onTap: () {
+                        setState(() {
+                          _selected = s.symbol;
+                          _controller.text = s.symbol;
+                          _results = [];
+                        });
+                        _startAutoRefresh(s.symbol);
+                      },
+                    );
+                  },
                 ),
-                onSubmitted: (_) => _search(),
               ),
-              SizedBox(height: 30),
-              Text(
-                "Trending Stocks",
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
+            ] else ...[
+              SizedBox(height: 16),
+              Text("Trending Stocks", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               SizedBox(height: 12),
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 16,
-                runSpacing: 16,
-                children:
-                    _trendingSymbols.map((s) {
-                      final price = _trendingPrices[s.symbol];
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selected = s.symbol;
-                            _controller.text = s.symbol;
-                            _results = [];
-                          });
-                          _startAutoRefresh(s.symbol);
-                        },
-                        child: Container(
-                          width: 160,
-                          padding: EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.greenAccent),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Text(
-                                s.symbol,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              SizedBox(height: 6),
-                              Text(
-                                s.description,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.black54,
-                                ),
-                              ),
-                              SizedBox(height: 6),
-                              Text(
-                                price != null
-                                    ? "\$${price.toStringAsFixed(2)}"
-                                    : "Loading...",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ],
-                          ),
+              Expanded(
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 16,
+                  runSpacing: 16,
+                  children: _trendingSymbols.map((s) {
+                    final price = _trendingPrices[s.symbol];
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selected = s.symbol;
+                          _controller.text = s.symbol;
+                          _results = [];
+                        });
+                        _startAutoRefresh(s.symbol);
+                      },
+                      child: Container(
+                        width: 160,
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.greenAccent),
                         ),
-                      );
-                    }).toList(),
-              ),
-              if (_selected != null) ...[
-                SizedBox(height: 20),
-                Text("Selected: $_selected", style: TextStyle(fontSize: 16)),
-                SizedBox(height: 8),
-                if (_priceLoading)
-                  CircularProgressIndicator()
-                else if (_price != null)
-                  Text(
-                    "Price: \$${_price!.toStringAsFixed(2)}",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  )
-                else if (_priceError != null)
-                  Text(_priceError!, style: TextStyle(color: Colors.redAccent)),
-                SizedBox(height: 8),
-                ElevatedButton(
-                  onPressed: () => _showCategoryDialog(_selected!),
-                  child: Text("Add to Favorites"),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Text(s.symbol, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+                            SizedBox(height: 6),
+                            Text(s.description, textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Colors.black54)),
+                            SizedBox(height: 6),
+                            Text(price != null ? "\$${price.toStringAsFixed(2)}" : "Loading...", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ),
-              ],
+              ),
             ],
-          ),
+            if (_selected != null) ...[
+              SizedBox(height: 20),
+              Text("Selected: $_selected", style: TextStyle(fontSize: 16)),
+              SizedBox(height: 8),
+              if (_priceLoading)
+                CircularProgressIndicator()
+              else if (_price != null)
+                Text("Price: \$${_price!.toStringAsFixed(2)}", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))
+              else if (_priceError != null)
+                  Text(_priceError!, style: TextStyle(color: Colors.redAccent)),
+              SizedBox(height: 8),
+              ElevatedButton(onPressed: () => _showCategoryDialog(_selected!), child: Text("Add to Favorites")),
+            ],
+          ],
         ),
       ),
     );
@@ -335,3 +307,4 @@ class _Symbol {
   final String description;
   _Symbol(this.symbol, this.description);
 }
+
