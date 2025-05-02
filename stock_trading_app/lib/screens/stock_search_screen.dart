@@ -20,10 +20,50 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
   String? _priceError;
   Timer? _timer;
 
+  final List<_Symbol> _trendingSymbols = [
+    _Symbol('AAPL', 'Apple Inc.'),
+    _Symbol('GOOGL', 'Alphabet Inc.'),
+    _Symbol('TSLA', 'Tesla Inc.'),
+    _Symbol('AMZN', 'Amazon.com Inc.'),
+    _Symbol('MSFT', 'Microsoft Corp.'),
+    _Symbol('NFLX', 'Netflix Inc.'),
+    _Symbol('NVDA', 'NVIDIA Corp.'),
+    _Symbol('META', 'Meta Platforms Inc.'),
+    _Symbol('BABA', 'Alibaba Group'),
+    _Symbol('INTC', 'Intel Corp.'),
+  ];
+  Map<String, double> _trendingPrices = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchTrendingPrices();
+  }
+
   @override
   void dispose() {
     _timer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _fetchTrendingPrices() async {
+    final token = dotenv.env['FINNHUB_API_KEY'];
+    for (final stock in _trendingSymbols) {
+      final uri = Uri.https('finnhub.io', '/api/v1/quote', {
+        'symbol': stock.symbol,
+        'token': token,
+      });
+      try {
+        final resp = await http.get(uri);
+        final data = json.decode(resp.body);
+        final price = (data['c'] as num).toDouble();
+        setState(() {
+          _trendingPrices[stock.symbol] = price;
+        });
+      } catch (e) {
+        print("Trending fetch error for \${stock.symbol}: \$e");
+      }
+    }
   }
 
   Future<void> _search() async {
@@ -49,12 +89,15 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
       final data = json.decode(resp.body);
       final List hits = data['result'] ?? [];
       setState(() {
-        _results = hits
-            .map((e) => _Symbol(
-          e['symbol'] as String,
-          e['description'] as String,
-        ))
-            .toList();
+        _results =
+            hits
+                .map(
+                  (e) => _Symbol(
+                    e['symbol'] as String,
+                    e['description'] as String,
+                  ),
+                )
+                .toList();
       });
     } catch (e) {
       print("Search error: \$e");
@@ -116,6 +159,82 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
               ),
               onSubmitted: (_) => _search(),
             ),
+
+            SizedBox(height: 30),
+            Text(
+              "Trending Stocks",
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 12),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 16,
+              runSpacing: 16,
+              children:
+                  _trendingSymbols.map((s) {
+                    final price = _trendingPrices[s.symbol];
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selected = s.symbol;
+                          _controller.text = s.symbol;
+                          _results = [];
+                        });
+                        _startAutoRefresh(s.symbol);
+                      },
+                      child: Container(
+                        width: 160,
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.2),
+                              blurRadius: 4,
+                              offset: Offset(2, 4),
+                            ),
+                          ],
+                          border: Border.all(color: Colors.greenAccent),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Text(
+                              s.symbol,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            SizedBox(height: 6),
+                            Text(
+                              s.description,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.black54,
+                              ),
+                            ),
+                            SizedBox(height: 6),
+                            Text(
+                              price != null
+                                  ? "\$${price.toStringAsFixed(2)}"
+                                  : "Loading...",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+            ),
+
             if (_loading) ...[
               SizedBox(height: 20),
               CircularProgressIndicator(),
@@ -143,12 +262,10 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
                 ),
               ),
             ],
+
             if (_selected != null) ...[
               SizedBox(height: 20),
-              Text(
-                "Selected: $_selected",
-                style: TextStyle(fontSize: 16),
-              ),
+              Text("Selected: $_selected", style: TextStyle(fontSize: 16)),
               SizedBox(height: 8),
               if (_priceLoading)
                 CircularProgressIndicator()
@@ -158,10 +275,7 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 )
               else if (_priceError != null)
-                  Text(
-                    _priceError!,
-                    style: TextStyle(color: Colors.redAccent),
-                  ),
+                Text(_priceError!, style: TextStyle(color: Colors.redAccent)),
               SizedBox(height: 8),
               ElevatedButton(
                 onPressed: () async {
