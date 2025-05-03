@@ -224,6 +224,8 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   Map<String, dynamic>? _quote;
   String? _error;
 
+  final firestore = FirestoreService();
+
   @override
   void initState() {
     super.initState();
@@ -260,10 +262,47 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     }
   }
 
+  Future<void> _showCategoryDialog() async {
+    final categories = ['Tech', 'Energy', 'Crypto', 'Finance', 'Other'];
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text('Select Category'),
+        children: categories.map((category) {
+          return SimpleDialogOption(
+            child: Text(category),
+            onPressed: () => Navigator.pop(context, category),
+          );
+        }).toList(),
+      ),
+    );
+    if (selected != null) {
+      try {
+        await firestore.addFavoriteStock(widget.symbol, selected);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${widget.symbol} added to \$selected favorites')),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to add favorite: \$e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.symbol)),
+      appBar: AppBar(
+        title: Text(widget.symbol),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.star_border),
+            tooltip: 'Add to Favorites',
+            onPressed: _showCategoryDialog,
+          ),
+        ],
+      ),
       body: _loading
           ? Center(child: CircularProgressIndicator())
           : _error != null
@@ -299,7 +338,6 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
             Text('High: \$${_quote?['h']?.toStringAsFixed(2)}'),
             Text('Low: \$${_quote?['l']?.toStringAsFixed(2)}'),
             SizedBox(height: 24),
-            // Chart widget displaying the stock price history
             StockPriceChart(symbol: widget.symbol),
           ],
         ),
