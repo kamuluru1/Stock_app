@@ -84,9 +84,15 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
       final List hits = data['result'] ?? [];
       if (!mounted) return;
       setState(() {
-        _results = hits
-            .map((e) => _Symbol(e['symbol'] as String, e['description'] as String))
-            .toList();
+        _results =
+            hits
+                .map(
+                  (e) => _Symbol(
+                    e['symbol'] as String,
+                    e['description'] as String,
+                  ),
+                )
+                .toList();
       });
     } catch (e) {
       print("Search error: $e");
@@ -108,7 +114,10 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
               controller: _controller,
               decoration: InputDecoration(
                 labelText: 'Enter company name or symbol',
-                suffixIcon: IconButton(icon: Icon(Icons.search), onPressed: _search),
+                suffixIcon: IconButton(
+                  icon: Icon(Icons.search),
+                  onPressed: _search,
+                ),
               ),
               onSubmitted: (_) => _search(),
             ),
@@ -142,59 +151,63 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
                   alignment: WrapAlignment.center,
                   spacing: 16,
                   runSpacing: 16,
-                  children: _trendingSymbols.map((s) {
-                    final price = _trendingPrices[s.symbol];
-                    return GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => StockDetailScreen(symbol: s.symbol),
+                  children:
+                      _trendingSymbols.map((s) {
+                        final price = _trendingPrices[s.symbol];
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (_) => StockDetailScreen(symbol: s.symbol),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            width: 160,
+                            padding: EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.greenAccent),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Text(
+                                  s.symbol,
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                SizedBox(height: 6),
+                                Text(
+                                  s.description,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                                SizedBox(height: 6),
+                                Text(
+                                  price != null
+                                      ? "\$${price.toStringAsFixed(2)}"
+                                      : "Loading...",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         );
-                      },
-                      child: Container(
-                        width: 160,
-                        padding: EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.greenAccent),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Text(
-                              s.symbol,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            SizedBox(height: 6),
-                            Text(
-                              s.description,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.black54,
-                              ),
-                            ),
-                            SizedBox(height: 6),
-                            Text(
-                              price != null ? "\$${price.toStringAsFixed(2)}" : "Loading...",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black87,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
+                      }).toList(),
                 ),
               ),
           ],
@@ -266,26 +279,30 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     final categories = ['Tech', 'Energy', 'Crypto', 'Finance', 'Other'];
     final selected = await showDialog<String>(
       context: context,
-      builder: (context) => SimpleDialog(
-        title: Text('Select Category'),
-        children: categories.map((category) {
-          return SimpleDialogOption(
-            child: Text(category),
-            onPressed: () => Navigator.pop(context, category),
-          );
-        }).toList(),
-      ),
+      builder:
+          (context) => SimpleDialog(
+            title: Text('Select Category'),
+            children:
+                categories.map((category) {
+                  return SimpleDialogOption(
+                    child: Text(category),
+                    onPressed: () => Navigator.pop(context, category),
+                  );
+                }).toList(),
+          ),
     );
     if (selected != null) {
       try {
         await firestore.addFavoriteStock(widget.symbol, selected);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${widget.symbol} added to \$selected favorites')),
+          SnackBar(
+            content: Text('${widget.symbol} added to $selected favorites'),
+          ),
         );
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to add favorite: \$e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to add favorite: \$e')));
       }
     }
   }
@@ -303,45 +320,52 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           ),
         ],
       ),
-      body: _loading
-          ? Center(child: CircularProgressIndicator())
-          : _error != null
-          ? Center(child: Text('Error: $_error'))
-          : SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            if (_profile?['logo'] != null) ...[
-              Image.network(_profile!['logo'], height: 80),
-              SizedBox(height: 12),
-            ],
-            Text(
-              _profile?['name'] ?? widget.symbol,
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 8),
-            Text(widget.symbol, style: TextStyle(fontSize: 18)),
-            SizedBox(height: 16),
-            Text('Industry: ${_profile?['finnhubIndustry'] ?? 'N/A'}'),
-            SizedBox(height: 8),
-            Text(
-              'Market Cap: \$${_profile?['marketCapitalization']?.toStringAsFixed(2)} M',
-            ),
-            SizedBox(height: 24),
-            Text(
-              'Current Price: \$${_quote?['c']?.toStringAsFixed(2)}',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 8),
-            Text('Open: \$${_quote?['o']?.toStringAsFixed(2)}'),
-            Text('High: \$${_quote?['h']?.toStringAsFixed(2)}'),
-            Text('Low: \$${_quote?['l']?.toStringAsFixed(2)}'),
-            SizedBox(height: 24),
-            StockPriceChart(symbol: widget.symbol),
-          ],
-        ),
-      ),
+      body:
+          _loading
+              ? Center(child: CircularProgressIndicator())
+              : _error != null
+              ? Center(child: Text('Error: $_error'))
+              : SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (_profile?['logo'] != null) ...[
+                      Image.network(_profile!['logo'], height: 80),
+                      SizedBox(height: 12),
+                    ],
+                    Text(
+                      _profile?['name'] ?? widget.symbol,
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(widget.symbol, style: TextStyle(fontSize: 18)),
+                    SizedBox(height: 16),
+                    Text('Industry: ${_profile?['finnhubIndustry'] ?? 'N/A'}'),
+                    SizedBox(height: 8),
+                    Text(
+                      'Market Cap: \$${_profile?['marketCapitalization']?.toStringAsFixed(2)} M',
+                    ),
+                    SizedBox(height: 24),
+                    Text(
+                      'Current Price: \$${_quote?['c']?.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text('Open: \$${_quote?['o']?.toStringAsFixed(2)}'),
+                    Text('High: \$${_quote?['h']?.toStringAsFixed(2)}'),
+                    Text('Low: \$${_quote?['l']?.toStringAsFixed(2)}'),
+                    SizedBox(height: 24),
+                    StockPriceChart(symbol: widget.symbol),
+                  ],
+                ),
+              ),
     );
   }
 }

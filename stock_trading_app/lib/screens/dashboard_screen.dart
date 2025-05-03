@@ -29,10 +29,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     final watchlist = await firestore.getCategorizedFavorites().first;
     final symbols = watchlist.values.expand((e) => e).toSet();
+    print("📊 Watchlist symbols: $symbols");
 
     final List<Map<String, dynamic>> allArticles = [];
 
-    if (symbols.isNotEmpty) {
+    if (symbols.isEmpty) {
+      // Fetch general news
+      final url = Uri.parse(
+        'https://finnhub.io/api/v1/news?category=general&token=$token',
+      );
+      try {
+        final res = await http.get(url);
+        final data = json.decode(res.body);
+        final articles = List<Map<String, dynamic>>.from(data);
+        articles.sort((a, b) => b['datetime'].compareTo(a['datetime']));
+        allArticles.addAll(
+          articles.take(10).map((a) => {...a, 'symbol': null}),
+        );
+      } catch (e) {
+        print("Error fetching general news: $e");
+      }
+    } else {
+      // Fetch news for each symbol
       for (final symbol in symbols) {
         final url = Uri.parse(
           'https://finnhub.io/api/v1/company-news?symbol=$symbol&from=$fromStr&to=$toStr&token=$token',
@@ -48,21 +66,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         } catch (e) {
           print("Error fetching news for $symbol: $e");
         }
-      }
-    } else {
-      final url = Uri.parse(
-        'https://finnhub.io/api/v1/news?category=general&token=$token',
-      );
-      try {
-        final res = await http.get(url);
-        final data = json.decode(res.body);
-        final articles = List<Map<String, dynamic>>.from(data);
-        articles.sort((a, b) => b['datetime'].compareTo(a['datetime']));
-        allArticles.addAll(
-          articles.take(10).map((a) => {...a, 'symbol': 'GENERAL'}),
-        );
-      } catch (e) {
-        print("Error fetching general news: $e");
       }
     }
 
@@ -161,60 +164,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
             SizedBox(height: 12),
             if (_newsArticles.isEmpty)
               Text(
-                "No news available.",
+                "No news available.\nAdd stocks to your watchlist to see news.",
                 style: TextStyle(color: Colors.white70),
+                textAlign: TextAlign.center,
               )
             else
               ..._newsArticles.map(
-                (article) => SizedBox(
-                  height: 200,
-                  child: Container(
-                    width: double.infinity,
-                    margin: EdgeInsets.only(bottom: 12),
-                    padding: EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[900],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.greenAccent.withOpacity(0.3),
+                (article) => Container(
+                  constraints: BoxConstraints(minHeight: 200),
+                  width: double.infinity,
+                  margin: EdgeInsets.only(bottom: 12),
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[900],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.greenAccent.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        article['headline'] ?? 'No headline',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: Colors.white,
+                        ),
                       ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                      SizedBox(height: 6),
+                      Text(
+                        article['summary']?.toString().trim().isEmpty ?? true
+                            ? 'No summary available.'
+                            : article['summary'],
+                        maxLines: 5,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: Colors.white70, fontSize: 14),
+                      ),
+                      SizedBox(height: 6),
+                      Text(
+                        article['symbol'] != null
+                            ? 'Symbol: ${article['symbol']}'
+                            : 'Market News',
+                        style: TextStyle(color: Colors.greenAccent),
+                      ),
+                      SizedBox(height: 4),
+                      if (article['datetime'] != null)
                         Text(
-                          article['headline'] ?? 'No headline',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                            color: Colors.white,
-                          ),
+                          'Published: ${DateTime.fromMillisecondsSinceEpoch(article['datetime'] * 1000).toLocal().toString().split('.')[0]}',
+                          style: TextStyle(color: Colors.white38, fontSize: 12),
                         ),
-                        SizedBox(height: 6),
-                        Text(
-                          article['summary']?.toString().trim().isEmpty ?? true
-                              ? 'No summary available.'
-                              : article['summary'],
-                          maxLines: 5,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
-                        SizedBox(height: 6),
-                        Text(
-                          'Symbol: ${article['symbol']}',
-                          style: TextStyle(color: Colors.greenAccent),
-                        ),
-                        SizedBox(height: 4),
-                        if (article['datetime'] != null)
-                          Text(
-                            'Published: ${DateTime.fromMillisecondsSinceEpoch(article['datetime'] * 1000).toLocal().toString().split('.')[0]}',
-                            style: TextStyle(
-                              color: Colors.white38,
-                              fontSize: 12,
-                            ),
-                          ),
-                      ],
-                    ),
+                    ],
                   ),
                 ),
               ),

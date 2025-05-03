@@ -85,7 +85,7 @@ class _StockPriceChartState extends State<StockPriceChart> {
         return;
       }
     } catch (e) {
-      debugPrint('❌ AlphaV error: $e');
+      debugPrint('AlphaV error: $e');
     }
 
     setState(() => _loading = false);
