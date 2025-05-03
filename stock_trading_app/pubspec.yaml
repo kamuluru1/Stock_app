@@ -40,6 +40,8 @@ dependencies:
   http: ^1.3.0 # for REST calls
   flutter_dotenv: ^5.0.2 # for loading .env file
   web_socket_channel: ^2.1.0
+  fl_chart: ^0.55.2
+  intl: ^0.17.0
 
 dev_dependencies:
   flutter_test:

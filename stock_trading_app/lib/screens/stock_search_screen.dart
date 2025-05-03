@@ -303,4 +303,3 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     );
   }
 }
-
