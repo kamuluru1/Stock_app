@@ -13,6 +13,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   final FirestoreService firestore = FirestoreService();
   List<Map<String, dynamic>> _newsArticles = [];
+  String _selectedFilter = 'All';
 
   @override
   void initState() {
@@ -29,14 +30,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     final watchlist = await firestore.getCategorizedFavorites().first;
     final symbols = watchlist.values.expand((e) => e).toSet();
-    print("📊 Watchlist symbols: $symbols");
+    print("Watchlist symbols: $symbols");
 
     final List<Map<String, dynamic>> allArticles = [];
 
-    if (symbols.isEmpty) {
-      // Fetch general news
-      final url = Uri.parse(
+    try {
+      final marketUrl = Uri.parse(
         'https://finnhub.io/api/v1/news?category=general&token=$token',
+      );
+      final res = await http.get(marketUrl);
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        final articles = List<Map<String, dynamic>>.from(data);
+        articles.sort((a, b) => b['datetime'].compareTo(a['datetime']));
+        allArticles.addAll(
+          articles.take(10).map((a) => {...a, 'symbol': 'MARKET'}),
+        );
+        print("Loaded general market news (${articles.length} total)");
+      } else {
+        print("Failed to fetch general news: ${res.statusCode}");
+      }
+    } catch (e) {
+      print("Error fetching market news: $e");
+    }
+
+    for (final symbol in symbols) {
+      final url = Uri.parse(
+        'https://finnhub.io/api/v1/company-news?symbol=$symbol&from=$fromStr&to=$toStr&token=$token',
       );
       try {
         final res = await http.get(url);
@@ -44,28 +64,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final articles = List<Map<String, dynamic>>.from(data);
         articles.sort((a, b) => b['datetime'].compareTo(a['datetime']));
         allArticles.addAll(
-          articles.take(10).map((a) => {...a, 'symbol': null}),
+          articles.take(2).map((a) => {...a, 'symbol': symbol}),
         );
       } catch (e) {
-        print("Error fetching general news: $e");
-      }
-    } else {
-      // Fetch news for each symbol
-      for (final symbol in symbols) {
-        final url = Uri.parse(
-          'https://finnhub.io/api/v1/company-news?symbol=$symbol&from=$fromStr&to=$toStr&token=$token',
-        );
-        try {
-          final res = await http.get(url);
-          final data = json.decode(res.body);
-          final articles = List<Map<String, dynamic>>.from(data);
-          articles.sort((a, b) => b['datetime'].compareTo(a['datetime']));
-          allArticles.addAll(
-            articles.take(2).map((a) => {...a, 'symbol': symbol}),
-          );
-        } catch (e) {
-          print("Error fetching news for $symbol: $e");
-        }
+        print("Error fetching news for $symbol: $e");
       }
     }
 
@@ -84,6 +86,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
+
+    final filterOptions = [
+      'All',
+      'Market News',
+      ..._newsArticles
+          .map((a) => a['symbol'])
+          .where((s) => s != null && s != 'MARKET')
+          .toSet()
+          .cast<String>(),
+    ];
+
+    final filteredArticles =
+        _newsArticles.where((article) {
+          if (_selectedFilter == 'All') return true;
+          if (_selectedFilter == 'Market News')
+            return article['symbol'] == 'MARKET';
+          return article['symbol'] == _selectedFilter;
+        }).toList();
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -119,7 +139,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     SizedBox(height: 40),
                     ElevatedButton.icon(
-                      onPressed: () => Navigator.pushNamed(context, '/search'),
+                      onPressed: () async {
+                        await Navigator.pushNamed(context, '/search');
+                        _fetchWatchlistNews();
+                      },
                       icon: Icon(Icons.search),
                       label: Text("Search Stocks"),
                       style: ElevatedButton.styleFrom(
@@ -134,8 +157,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     SizedBox(height: 16),
                     ElevatedButton.icon(
-                      onPressed:
-                          () => Navigator.pushNamed(context, '/favorites'),
+                      onPressed: () async {
+                        await Navigator.pushNamed(context, '/favorites');
+                        _fetchWatchlistNews();
+                      },
                       icon: Icon(Icons.star),
                       label: Text("View Favorites"),
                       style: ElevatedButton.styleFrom(
@@ -162,14 +187,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             SizedBox(height: 12),
-            if (_newsArticles.isEmpty)
+            if (_newsArticles.isNotEmpty)
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.greenAccent),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedFilter,
+                    dropdownColor: Colors.black,
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                    iconEnabledColor: Colors.greenAccent,
+                    items:
+                        filterOptions.map((symbol) {
+                          return DropdownMenuItem<String>(
+                            value: symbol,
+                            child: Text(
+                              symbol == 'MARKET' ? 'Market News' : symbol,
+                            ),
+                          );
+                        }).toList(),
+                    onChanged: (value) {
+                      setState(() => _selectedFilter = value ?? 'All');
+                    },
+                  ),
+                ),
+              ),
+            SizedBox(height: 12),
+            if (filteredArticles.isEmpty)
               Text(
-                "No news available.\nAdd stocks to your watchlist to see news.",
+                "No news available for the selected filter.",
                 style: TextStyle(color: Colors.white70),
                 textAlign: TextAlign.center,
               )
             else
-              ..._newsArticles.map(
+              ...filteredArticles.map(
                 (article) => Container(
                   constraints: BoxConstraints(minHeight: 200),
                   width: double.infinity,
@@ -204,9 +259,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       SizedBox(height: 6),
                       Text(
-                        article['symbol'] != null
-                            ? 'Symbol: ${article['symbol']}'
-                            : 'Market News',
+                        article['symbol'] == 'MARKET'
+                            ? 'Market News'
+                            : 'Symbol: ${article['symbol']}',
                         style: TextStyle(color: Colors.greenAccent),
                       ),
                       SizedBox(height: 4),
