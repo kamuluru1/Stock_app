@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/firestore_service.dart';
+import './chart.dart';
 
 class StockSearchScreen extends StatefulWidget {
   @override
@@ -297,6 +298,9 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
             Text('Open: \$${_quote?['o']?.toStringAsFixed(2)}'),
             Text('High: \$${_quote?['h']?.toStringAsFixed(2)}'),
             Text('Low: \$${_quote?['l']?.toStringAsFixed(2)}'),
+            SizedBox(height: 24),
+            // Chart widget displaying the stock price history
+            StockPriceChart(symbol: widget.symbol),
           ],
         ),
       ),
